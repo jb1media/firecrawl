@@ -38,22 +38,18 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY . .
 
-# Install dependencies
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/native/target \
-    pnpm install --frozen-lockfile
+# 🔹 Simple install without cache mounts
+RUN pnpm install --frozen-lockfile
 
 # Build the application
 RUN pnpm run build
 
-# Remove dev dependencies
+# Prune dev dependencies
 RUN pnpm prune --prod --ignore-scripts
 
 # Runtime stage
 FROM base AS runtime
 
-# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     git \
     procps \
@@ -62,7 +58,6 @@ RUN apt-get update && apt-get install -y \
 EXPOSE 8080
 WORKDIR /app
 
-# Copy built application
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/native ./native
